@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <%- include('ejs/head', { title: 'Результати' }) %>
+</head>
+<body>
+  <%- include('ejs/header') %>
+
+  <main class="section">
+    <div class="container narrow-container">
+
+      <div class="page-top">
+        <a href="/" class="back-link">← Назад до всіх голосувань</a>
+      </div>
+
+      <section class="details-card">
+
+        <div class="results-head">
+          <div>
+            <% let badgeClass = 'badge-closed'; %>
+            <% let badgeText = 'Завершене'; %>
+
+            <% if (poll && poll.status === 'active') { %>
+              <% badgeClass = 'badge-active'; %>
+              <% badgeText = 'Активне'; %>
+            <% } %>
+
+            <span class="badge <%= badgeClass %>"><%= badgeText %></span>
+
+            <h1>Результати голосування</h1>
+            <p class="details-description"><%= poll ? poll.title : '' %></p>
+          </div>
+
+          <div class="results-total">
+            <span>Усього голосів</span>
+            <strong><%= typeof totalVotes !== 'undefined' ? totalVotes : 0 %></strong>
+          </div>
+        </div>
+
+        <% if (results && results.length > 0) { %>
+          <div class="results-list">
+            <% for (let i = 0; i < results.length; i++) { %>
+              <div class="result-card">
+                <div class="result-card__head">
+                  <h3><%= results[i].candidateName %></h3>
+
+                  <div class="result-card__numbers">
+                    <span><%= results[i].votesCount %> голосів</span>
+                    <strong><%= results[i].percent %>%</strong>
+                  </div>
+                </div>
+
+                <div class="progress">
+                  <div class="progress-bar" style="width: <%= results[i].percent + '%' %>"></div>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        <% } else { %>
+          <div class="empty-box">
+            <h3>Результатів поки що немає</h3>
+            <p>Ще не було жодного голосу в цьому голосуванні.</p>
+          </div>
+        <% } %>
+
+      </section>
+
+    </div>
+  </main>
+
+  <%- include('ejs/footer') %>
+</body>
+</html>

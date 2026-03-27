@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <%- include('ejs/head', { title: 'Усі голосування' }) %>
+</head>
+<body>
+  <%- include('ejs/header') %>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-inner">
+        <div class="hero-content">
+          <span class="eyebrow">Онлайн голосування</span>
+          <h1>Усі доступні голосування в одному місці</h1>
+          <p>
+            Обирайте активні голосування, переглядайте результати та швидко переходьте
+            до потрібного опитування.
+          </p>
+          <div class="hero-actions">
+            <a href="/admin/polls/new" class="btn btn-primary">Створити голосування</a>
+            <a href="/admin" class="btn btn-secondary">Перейти в адмінку</a>
+          </div>
+        </div>
+
+        <div class="hero-card">
+          <div class="hero-card__top">
+            <span class="badge badge-active">Активне</span>
+          </div>
+          <h3>Приклад голосування</h3>
+          <p>Оберіть найкращого кандидата серед доступних варіантів.</p>
+          <div class="hero-stats">
+            <div>
+              <strong>4</strong>
+              <span>кандидати</span>
+            </div>
+            <div>
+              <strong>1</strong>
+              <span>голос на людину</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <h2>Голосування</h2>
+            <p class="section-subtitle">Список усіх доступних голосувань</p>
+          </div>
+
+          <div class="toolbar">
+            <input
+              type="text"
+              id="pollSearch"
+              class="input"
+              placeholder="Пошук за назвою..."
+            />
+
+            <select id="statusFilter" class="select">
+              <option value="all">Усі статуси</option>
+              <option value="active">Активні</option>
+              <option value="closed">Завершені</option>
+            </select>
+          </div>
+        </div>
+
+        <% if (polls && polls.length > 0) { %>
+          <div class="poll-grid" id="pollGrid">
+            <% polls.forEach(poll => { %>
+              <article
+                class="poll-card"
+                data-title="<%= poll.title.toLowerCase() %>"
+                data-status="<%= poll.status %>"
+              >
+                <div class="poll-card__top">
+                  <span class="badge <%= poll.status === 'active' ? 'badge-active' : 'badge-closed' %>">
+                    <%= poll.status === 'active' ? 'Активне' : 'Завершене' %>
+                  </span>
+                  <span class="poll-date"><%= poll.createdAt %></span>
+                </div>
+
+                <h3 class="poll-card__title"><%= poll.title %></h3>
+                <p class="poll-card__description"><%= poll.description %></p>
+
+                <div class="poll-card__meta">
+                  <span>Кандидатів: <strong><%= poll.candidatesCount %></strong></span>
+                </div>
+
+                <div class="poll-card__actions">
+                  <a href="/polls/<%= poll.id %>" class="btn btn-primary btn-sm">Проголосувати</a>
+                  <a href="/polls/<%= poll.id %>/results" class="btn btn-secondary btn-sm">Результати</a>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+
+          <p class="empty-state hidden" id="noResultsMessage">Нічого не знайдено за вашим запитом.</p>
+        <% } else { %>
+          <div class="empty-box">
+            <h3>Поки що голосувань немає</h3>
+            <p>Створіть перше голосування в адмін панелі.</p>
+            <a href="/admin/polls/new" class="btn btn-primary">Створити</a>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+
+  <%- include('ejs/footer') %>
+</body>
+</html>

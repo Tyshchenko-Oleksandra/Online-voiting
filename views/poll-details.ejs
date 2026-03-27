@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <%- include('ejs/head', { title: poll.title }) %>
+</head>
+<body>
+  <%- include('ejs/header') %>
+
+  <main class="section">
+    <div class="container narrow-container">
+      <div class="page-top">
+        <a href="/" class="back-link">← Назад до всіх голосувань</a>
+      </div>
+
+      <section class="details-card">
+        <div class="details-card__head">
+          <div>
+            <span class="badge <%= poll.status === 'active' ? 'badge-active' : 'badge-closed' %>">
+              <%= poll.status === 'active' ? 'Активне' : 'Завершене' %>
+            </span>
+            <h1><%= poll.title %></h1>
+            <p class="details-description"><%= poll.description %></p>
+          </div>
+        </div>
+
+        <% if (alreadyVoted) { %>
+          <div class="info-banner info-banner--warning">
+            Ви вже голосували в цьому голосуванні.
+          </div>
+        <% } %>
+
+        <% if (poll.status !== 'active') { %>
+          <div class="info-banner info-banner--muted">
+            Голосування завершене. Нові голоси не приймаються.
+          </div>
+        <% } %>
+
+        <% if (poll.status === 'active' && !alreadyVoted) { %>
+          <form action="/polls/<%= poll.id %>/vote" method="POST" class="vote-form" id="voteForm">
+            <div class="candidate-list">
+              <% candidates.forEach(candidate => { %>
+                <label class="candidate-card">
+                  <input
+                    type="radio"
+                    name="candidateId"
+                    value="<%= candidate.id %>"
+                    class="candidate-radio"
+                  />
+                  <div class="candidate-card__content">
+                    <div class="candidate-card__top">
+                      <h3><%= candidate.name %></h3>
+                    </div>
+
+                    <% if (candidate.info) { %>
+                      <p><%= candidate.info %></p>
+                    <% } %>
+                  </div>
+                </label>
+              <% }) %>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-lg">Віддати голос</button>
+            </div>
+          </form>
+        <% } else { %>
+          <div class="form-actions">
+            <a href="/polls/<%= poll.id %>/results" class="btn btn-secondary">Переглянути результати</a>
+          </div>
+        <% } %>
+      </section>
+    </div>
+  </main>
+
+  <%- include('ejs/footer') %>
+</body>
+</html>
