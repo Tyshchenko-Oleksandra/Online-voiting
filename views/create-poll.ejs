@@ -1,98 +1,51 @@
 <!DOCTYPE html>
 <html lang="uk">
-<head>
-  <%- include('ejs/head', { title: poll ? 'Редагування голосування' : 'Створення голосування' }) %>
-</head>
+<head><%- include('ejs/head', { title: poll ? 'Редагування' : 'Створення голосування' }) %></head>
 <body>
   <%- include('ejs/header') %>
-
   <main class="section">
     <div class="container narrow-container">
       <div class="page-top">
         <a href="/admin" class="back-link">← Назад в адмін панель</a>
       </div>
-
       <section class="details-card">
-        <div class="section-head section-head--left">
-          <div>
-            <h1><%= poll ? 'Редагування голосування' : 'Створення голосування' %></h1>
-            <p class="section-subtitle">Заповніть основну інформацію та додайте кандидатів</p>
-          </div>
-        </div>
+        <h1 style="margin:0 0 6px"><%= poll ? 'Редагування голосування' : 'Створення голосування' %></h1>
+        <p class="section-subtitle" style="margin:0 0 24px">Заповніть основну інформацію</p>
 
-        <form
-          action="<%= poll ? `/admin/polls/${poll.id}` : '/admin/polls' %>"
-          method="POST"
-          class="form"
-          id="pollForm"
-        >
+        <form action="<%= poll ? `/admin/polls/${poll.id}` : '/admin/polls' %>" method="POST" class="form">
           <div class="form-group">
             <label for="title" class="label">Назва голосування</label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              class="input"
+            <input type="text" id="title" name="title" class="input"
               placeholder="Наприклад: Вибори старости"
-              value="<%= poll ? poll.title : '' %>"
-              required
-            />
+              value="<%= poll ? poll.title : '' %>" required />
           </div>
 
           <div class="form-group">
             <label for="description" class="label">Опис</label>
-            <textarea
-              id="description"
-              name="description"
-              class="textarea"
-              placeholder="Короткий опис голосування"
-              required
-            ><%= poll ? poll.description : '' %></textarea>
+            <textarea id="description" name="description" class="textarea"
+              placeholder="Короткий опис голосування" required><%= poll ? poll.description : '' %></textarea>
           </div>
 
           <div class="form-group">
             <div class="candidate-form-head">
-              <label class="label">Кандидати</label>
-              <button type="button" class="btn btn-secondary btn-sm" id="addCandidateBtn">
-                Додати кандидата
-              </button>
+              <label class="label">Варіанти для голосування</label>
+              <button type="button" class="btn btn-secondary btn-sm" id="addCandidateBtn">+ Додати варіант</button>
             </div>
-
             <div id="candidateFields">
-              <% if (candidates && candidates.length > 0) { %>
-                <% candidates.forEach((candidate, index) => { %>
+              <% if (poll && poll.options && poll.options.length > 0) { %>
+                <% poll.options.forEach(opt => { %>
                   <div class="candidate-field">
-                    <input
-                      type="text"
-                      name="candidates[]"
-                      class="input"
-                      placeholder="Ім’я кандидата"
-                      value="<%= candidate.name %>"
-                      required
-                    />
+                    <input type="text" name="options[]" class="input" placeholder="Варіант відповіді" value="<%= opt %>" />
                     <button type="button" class="remove-candidate-btn">✕</button>
                   </div>
                 <% }) %>
               <% } else { %>
                 <div class="candidate-field">
-                  <input
-                    type="text"
-                    name="candidates[]"
-                    class="input"
-                    placeholder="Ім’я кандидата"
-                    required
-                  />
+                  <input type="text" name="options[]" class="input" placeholder="Варіант відповіді" />
                   <button type="button" class="remove-candidate-btn">✕</button>
                 </div>
-
                 <div class="candidate-field">
-                  <input
-                    type="text"
-                    name="candidates[]"
-                    class="input"
-                    placeholder="Ім’я кандидата"
-                    required
-                  />
+                  <input type="text" name="options[]" class="input" placeholder="Варіант відповіді" />
                   <button type="button" class="remove-candidate-btn">✕</button>
                 </div>
               <% } %>
@@ -108,7 +61,6 @@
       </section>
     </div>
   </main>
-
   <%- include('ejs/footer') %>
 </body>
 </html>

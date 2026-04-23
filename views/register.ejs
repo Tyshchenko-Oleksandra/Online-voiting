@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head><%- include('ejs/head', { title: 'Реєстрація' }) %></head>
+<body>
+  <%- include('ejs/header') %>
+  <main class="section">
+    <div class="container narrow-container" style="max-width:460px">
+      <section class="details-card">
+        <h1 style="margin:0 0 6px">Реєстрація</h1>
+        <p class="section-subtitle" style="margin:0 0 24px">Створіть новий акаунт</p>
+
+        <% if (error) { %>
+          <div class="info-banner info-banner--warning" style="margin-bottom:18px"><%= error %></div>
+        <% } %>
+
+        <form method="POST" action="/register" class="form">
+          <div class="form-group">
+            <label class="label" for="username">Логін</label>
+            <input type="text" id="username" name="username" class="input" required autofocus />
+          </div>
+          <div class="form-group">
+            <label class="label" for="password">Пароль</label>
+            <input type="password" id="password" name="password" class="input" required />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">Створити акаунт</button>
+          </div>
+        </form>
+
+        <p style="margin-top:18px;color:var(--muted);font-size:14px">
+          Вже є акаунт? <a href="/login" style="color:var(--primary);font-weight:700">Увійти</a>
+        </p>
+      </section>
+    </div>
+  </main>
+  <%- include('ejs/footer') %>
+</body>
+</html>

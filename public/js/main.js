@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
   initBurgerMenu();
   initPollFilters();
-  initAddCandidateField();
+  initAddOptionField();
   initCopyButtons();
   initDeleteConfirmation();
   initVoteValidation();
@@ -39,14 +39,10 @@ function initPollFilters() {
 
       const matchesSearch = title.includes(searchValue);
       const matchesStatus = statusValue === 'all' || status === statusValue;
-
       const shouldShow = matchesSearch && matchesStatus;
 
       card.style.display = shouldShow ? '' : 'none';
-
-      if (shouldShow) {
-        visibleCount++;
-      }
+      if (shouldShow) visibleCount++;
     });
 
     if (noResultsMessage) {
@@ -58,7 +54,7 @@ function initPollFilters() {
   statusFilter.addEventListener('change', filterCards);
 }
 
-function initAddCandidateField() {
+function initAddOptionField() {
   const addButton = document.getElementById('addCandidateBtn');
   const candidateFields = document.getElementById('candidateFields');
 
@@ -68,27 +64,25 @@ function initAddCandidateField() {
     addButton.addEventListener('click', function () {
       const wrapper = document.createElement('div');
       wrapper.className = 'candidate-field';
-
       wrapper.innerHTML = `
         <input
           type="text"
-          name="candidates[]"
+          name="options[]"
           class="input"
-          placeholder="Ім’я кандидата"
+          placeholder="Варіант відповіді"
           required
         />
         <button type="button" class="remove-candidate-btn">✕</button>
       `;
-
       candidateFields.appendChild(wrapper);
-      bindRemoveCandidateButtons();
+      bindRemoveButtons();
     });
   }
 
-  bindRemoveCandidateButtons();
+  bindRemoveButtons();
 }
 
-function bindRemoveCandidateButtons() {
+function bindRemoveButtons() {
   const buttons = document.querySelectorAll('.remove-candidate-btn');
 
   buttons.forEach(function (button) {
@@ -96,14 +90,12 @@ function bindRemoveCandidateButtons() {
       const allFields = document.querySelectorAll('.candidate-field');
 
       if (allFields.length <= 2) {
-        showToast('Має залишитися хоча б 2 кандидати');
+        showToast('Має залишитися хоча б 2 варіанти');
         return;
       }
 
       const parent = button.parentElement;
-      if (parent) {
-        parent.remove();
-      }
+      if (parent) parent.remove();
     };
   });
 }
@@ -114,7 +106,6 @@ function initCopyButtons() {
   copyButtons.forEach(function (button) {
     button.addEventListener('click', function () {
       const text = button.dataset.copyText;
-
       if (!text) return;
 
       navigator.clipboard.writeText(text)
@@ -134,10 +125,7 @@ function initDeleteConfirmation() {
   deleteForms.forEach(function (form) {
     form.addEventListener('submit', function (event) {
       const confirmed = confirm('Точно видалити це голосування?');
-
-      if (!confirmed) {
-        event.preventDefault();
-      }
+      if (!confirmed) event.preventDefault();
     });
   });
 }
@@ -148,26 +136,25 @@ function initVoteValidation() {
   if (!voteForm) return;
 
   voteForm.addEventListener('submit', function (event) {
-    const checked = voteForm.querySelector('input[name="candidateId"]:checked');
+    const checked = voteForm.querySelector('input[name="optionIndex"]:checked');
 
     if (!checked) {
       event.preventDefault();
-      showToast('Оберіть кандидата перед голосуванням');
+      showToast('Оберіть варіант перед голосуванням');
     }
   });
 }
 
 function showToast(message) {
   const toast = document.getElementById('toast');
-
   if (!toast) return;
 
   toast.textContent = message;
   toast.classList.add('show');
 
-  clearTimeout(toast._timer);
+  clearTimeout(toast._hideTimer);
 
-  toast._timer = setTimeout(function () {
+  toast._hideTimer = setTimeout(function () {
     toast.classList.remove('show');
   }, 2200);
 }

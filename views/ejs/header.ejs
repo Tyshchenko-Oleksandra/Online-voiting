@@ -1,0 +1,27 @@
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/" class="logo">
+      <div class="logo-mark">V</div>
+      VoteApp
+    </a>
+
+    <button class="burger" id="burgerButton" aria-label="Меню">
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="main-nav" id="mainNav">
+      <a href="/" class="nav-link">Голосування</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Адмін панель</a>
+      <% } %>
+      <% if (user) { %>
+        <span class="nav-link" style="color:var(--muted)"><%= user.username %></span>
+        <a href="/logout" class="nav-link nav-link--button" style="pointer-events: auto; cursor: pointer; z-index: 200; position: relative;">Вийти</a>
+      <% } else { %>
+        <a href="/login" class="nav-link">Вхід</a>
+        <a href="/register" class="nav-link nav-link--button">Реєстрація</a>
+      <% } %>
+    </nav>
+  </div>
+</header>
+<div id="toast" class="toast"></div>
