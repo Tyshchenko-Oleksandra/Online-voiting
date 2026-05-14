@@ -847,4 +847,20 @@ button {
   .admin-poll-card {
     border-radius: 20px;
   }
+  .candidate-card.selected {
+  border-color: #4f46e5;
+  background-color: #eef2ff;
+}
+
+.candidate-card::after {
+  pointer-events: none;
+}
+
+.candidate-card input[type="radio"] {
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 }

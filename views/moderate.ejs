@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <%- include('ejs/head', { title: 'Модерація' }) %>
+</head>
+<body>
+  <%- include('ejs/header') %>
+
+  <main class="section">
+    <div class="container admin-layout">
+      <aside class="admin-sidebar">
+        <h2>Адмін панель</h2>
+        <nav class="admin-nav">
+          <a href="/admin" class="admin-nav__link">Мої голосування</a>
+          <a href="/admin/polls/new" class="admin-nav__link">Створити голосування</a>
+          <a href="/admin/moderate" class="admin-nav__link active">Модерація</a>
+        </nav>
+      </aside>
+
+      <section class="admin-content">
+        <div class="section-head">
+          <div>
+            <h1>Модерація</h1>
+            <p class="section-subtitle">Голосування що очікують підтвердження</p>
+          </div>
+          <span id="pendingCount" class="badge badge-pending" style="align-self:center;font-size:14px"></span>
+        </div>
+
+        <!-- Завантаження -->
+        <div id="loadingState">
+          <div class="skeleton" style="width:100%;height:90px;border-radius:12px;margin-bottom:10px"></div>
+          <div class="skeleton" style="width:100%;height:90px;border-radius:12px;margin-bottom:10px"></div>
+          <div class="skeleton" style="width:100%;height:90px;border-radius:12px"></div>
+        </div>
+
+        <!-- Список -->
+        <div id="moderateCards" class="admin-cards" style="display:none"></div>
+
+        <!-- Порожньо -->
+        <div id="emptyState" class="empty-box" style="display:none">
+          <h3>Нових заявок немає</h3>
+          <p>Усі голосування перевірено.</p>
+        </div>
+
+        <!-- Помилка -->
+        <div id="errorState" class="empty-box" style="display:none">
+          <h3>Не вдалося завантажити заявки</h3>
+          <button onclick="loadPending()" class="btn btn-primary" style="margin-top:12px">Спробувати ще</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <%- include('ejs/footer') %>
+  <div id="toast"></div>
+
+  <style>
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f5f6fa 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .badge-pending { background: #fff3cd; color: #856404; }
+
+    .moderate-card {
+      background: var(--color-surface, #f5f6fa);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      border-left: 4px solid #ffc107;
+    }
+    .moderate-card__info { flex: 1; min-width: 0; }
+    .moderate-card__info h3 {
+      margin: 6px 0 4px;
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .moderate-card__info p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--color-muted, #888);
+    }
+    .moderate-card__author {
+      font-size: 12px;
+      color: var(--color-muted, #999);
+      margin-top: 6px;
+    }
+    .moderate-card__actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .btn-approve {
+      background: #198754;
+      color: #fff;
+      border: none;
+    }
+    .btn-approve:hover { background: #157347; }
+    .btn-approve:disabled { background: #aaa; cursor: default; }
+  </style>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', loadPending);
+
+  async function loadPending() {
+    show('loadingState');
+    hide('moderateCards');
+    hide('emptyState');
+    hide('errorState');
+
+    try {
+      const res  = await fetch('/api/petitions/pending');
+      const data = await res.json();
+
+      hide('loadingState');
+
+      if (!data.success) { show('errorState'); return; }
+
+      const count = data.petitions.length;
+      const badge = document.getElementById('pendingCount');
+      badge.textContent = count ? `${count} очікує` : '';
+      badge.style.display = count ? '' : 'none';
+
+      if (!count) { show('emptyState'); return; }
+
+      renderCards(data.petitions);
+      show('moderateCards');
+
+    } catch (err) {
+      console.error('Помилка:', err);
+      hide('loadingState');
+      show('errorState');
+    }
+  }
+
+  function renderCards(petitions) {
+    const container = document.getElementById('moderateCards');
+    container.innerHTML = '';
+
+    petitions.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'moderate-card';
+      card.id = `card-${p.id}`;
+      card.innerHTML = `
+        <div class="moderate-card__info">
+          <span class="badge badge-pending">На розгляді</span>
+          <h3>${escHtml(p.name)}</h3>
+          <p>${escHtml(p.text)}</p>
+          <p class="moderate-card__author">Автор: ${escHtml(p.author || '—')}</p>
+        </div>
+        <div class="moderate-card__actions">
+          <a href="/polls/${p.id}/results" class="btn btn-secondary btn-sm" target="_blank">Переглянути</a>
+          <button
+            class="btn btn-approve btn-sm"
+            id="approve-${p.id}"
+            onclick="approvePetition(${p.id})"
+          >
+            ✓ Підтвердити
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deletePetition(${p.id})">Відхилити</button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  async function approvePetition(id) {
+    const btn = document.getElementById(`approve-${id}`);
+    btn.disabled = true;
+    btn.textContent = 'Збереження…';
+
+    try {
+      const res  = await fetch(`/api/petition/${id}/verify`, { method: 'PATCH' });
+      const data = await res.json();
+      showToast(data.message);
+
+      if (data.success) {
+        // Оновлюємо бейдж і блокуємо кнопки
+        const card = document.getElementById(`card-${id}`);
+        card.style.borderLeftColor = '#198754';
+        card.querySelector('.badge').textContent = 'Активне';
+        card.querySelector('.badge').className = 'badge badge-active';
+        btn.textContent = '✓ Підтверджено';
+
+        updateCounter(-1);
+      } else {
+        btn.disabled = false;
+        btn.textContent = '✓ Підтвердити';
+      }
+    } catch {
+      showToast('Сервер недоступний');
+      btn.disabled = false;
+      btn.textContent = '✓ Підтвердити';
+    }
+  }
+
+  async function deletePetition(id) {
+    if (!confirm('Відхилити і видалити це голосування?')) return;
+
+    try {
+      const res  = await fetch(`/api/petition/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      showToast(data.message);
+
+      if (data.success) {
+        document.getElementById(`card-${id}`)?.remove();
+        updateCounter(-1);
+        if (!document.querySelectorAll('.moderate-card').length) {
+          hide('moderateCards');
+          show('emptyState');
+        }
+      }
+    } catch {
+      showToast('Сервер недоступний');
+    }
+  }
+
+  function updateCounter(delta) {
+    const badge = document.getElementById('pendingCount');
+    const current = parseInt(badge.textContent) || 0;
+    const next = current + delta;
+    badge.textContent = next > 0 ? `${next} очікує` : '';
+    badge.style.display = next > 0 ? '' : 'none';
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function show(id) { const el = document.getElementById(id); if (el) el.style.display = ''; }
+  function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+  </script>
+</body>
+</html>

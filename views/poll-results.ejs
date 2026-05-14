@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head><%- include('ejs/head', { title: 'Результати голосування' }) %></head>
+<body>
+  <%- include('ejs/header') %>
+  <main class="section">
+    <div class="container narrow-container">
+      <div class="page-top">
+        <a href="/" class="back-link">← Назад до всіх голосувань</a>
+      </div>
+
+      <section class="details-card" id="resultsCard">
+
+        <!-- Скелетон під час завантаження -->
+        <div id="loadingState">
+          <div class="skeleton skeleton-badge"></div>
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-bar" style="width:90%"></div>
+          <div class="skeleton skeleton-bar" style="width:60%"></div>
+        </div>
+
+        <!-- Вміст після завантаження -->
+        <div id="resultsContent" style="display:none">
+          <div class="results-head">
+            <div>
+              <span id="statusBadge" class="badge"></span>
+              <h1 id="pollTitle" style="margin-top:8px"></h1>
+              <p class="details-description" id="pollDescription"></p>
+            </div>
+            <div class="results-total">
+              <span>Усього голосів</span>
+              <strong id="totalVotes">0</strong>
+            </div>
+          </div>
+
+          <div id="resultsList" class="results-list"></div>
+
+          <div class="form-actions" style="margin-top:24px">
+            <a id="backToVoteLink" href="#" class="btn btn-secondary">← До голосування</a>
+          </div>
+        </div>
+
+        <!-- Помилка -->
+        <div id="errorState" style="display:none" class="empty-box">
+          <h3>Не вдалося завантажити результати</h3>
+          <p>Спробуйте оновити сторінку.</p>
+          <button onclick="location.reload()" class="btn btn-primary" style="margin-top:12px">Оновити</button>
+        </div>
+
+      </section>
+    </div>
+  </main>
+  <%- include('ejs/footer') %>
+
+  <div id="toast"></div>
+
+  <style>
+    /* Скелетон */
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f5f6fa 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-badge  { width: 72px; height: 22px; border-radius: 20px; }
+    .skeleton-title  { width: 65%; height: 32px; margin-top: 10px; }
+    .skeleton-text   { width: 80%; height: 16px; }
+    .skeleton-bar    { height: 56px; border-radius: 10px; margin-top: 14px; }
+
+    /* Результати */
+    .results-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .results-total {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      color: var(--color-muted, #888);
+      font-size: 13px;
+    }
+    .results-total strong {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-text, #1a1a2e);
+      line-height: 1;
+    }
+    .results-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .result-card {
+      background: var(--color-surface, #f5f6fa);
+      border-radius: 12px;
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .result-card__bar {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      background: var(--color-primary, #4f46e5);
+      opacity: 0.10;
+      border-radius: 12px;
+      transition: width 0.7s cubic-bezier(.4,0,.2,1);
+      width: 0%;
+    }
+    .result-card.winner .result-card__bar {
+      opacity: 0.18;
+    }
+    .result-card__head {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .result-card__head h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .winner-crown {
+      font-size: 16px;
+    }
+    .result-card__numbers {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+    }
+    .result-card__numbers span {
+      font-size: 13px;
+      color: var(--color-muted, #888);
+    }
+    .result-card__numbers strong {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--color-primary, #4f46e5);
+      min-width: 46px;
+      text-align: right;
+    }
+    .empty-box {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--color-muted, #888);
+    }
+  </style>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', initResults);
+
+  async function initResults() {
+    // URL: /polls/123/results
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    const pollId = parts[1];
+    if (!pollId) { showError(); return; }
+
+    document.getElementById('backToVoteLink').href = `/polls/${pollId}`;
+
+    try {
+      const res = await fetch(`/api/petition/${pollId}`);
+      const data = await res.json();
+
+      if (!data.success) { showError(); return; }
+
+      const { petition } = data;
+      const answers = petition.answers || [];
+
+      // Заголовок і статус
+      document.getElementById('pollTitle').textContent = petition.name;
+      document.getElementById('pollDescription').textContent = petition.text;
+
+      const badge = document.getElementById('statusBadge');
+      if (petition.status === 1) {
+        badge.textContent = 'Активне';
+        badge.className = 'badge badge-active';
+      } else {
+        badge.textContent = 'Завершене';
+        badge.className = 'badge badge-closed';
+      }
+
+      // Підрахунок голосів
+      const total = answers.reduce((sum, a) => sum + (Number(a.num_of_vote) || 0), 0);
+      document.getElementById('totalVotes').textContent = total;
+
+      // Сортуємо — лідер зверху
+      const sorted = [...answers].sort((a, b) => (b.num_of_vote || 0) - (a.num_of_vote || 0));
+      const maxVotes = sorted[0]?.num_of_vote || 0;
+
+      const list = document.getElementById('resultsList');
+
+      if (sorted.length === 0) {
+        list.innerHTML = `
+          <div class="empty-box">
+            <h3>Голосів ще немає</h3>
+            <p>Результати з'являться після перших голосів.</p>
+          </div>`;
+      } else {
+        sorted.forEach((answer, i) => {
+          const votes   = Number(answer.num_of_vote) || 0;
+          const percent = total > 0 ? Math.round((votes / total) * 100) : 0;
+          const isWinner = i === 0 && votes > 0;
+
+          const card = document.createElement('div');
+          card.className = 'result-card' + (isWinner ? ' winner' : '');
+          card.innerHTML = `
+            <div class="result-card__bar" data-percent="${percent}"></div>
+            <div class="result-card__head">
+              <h3>
+                ${isWinner ? '<span class="winner-crown">👑</span>' : ''}
+                ${escHtml(answer.name)}
+              </h3>
+              <div class="result-card__numbers">
+                <span>${votes} голосів</span>
+                <strong>${percent}%</strong>
+              </div>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+
+        // Анімація прогрес-барів після рендеру
+        requestAnimationFrame(() => {
+          document.querySelectorAll('.result-card__bar').forEach(bar => {
+            bar.style.width = bar.dataset.percent + '%';
+          });
+        });
+      }
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('resultsContent').style.display = '';
+
+    } catch (err) {
+      console.error('Помилка завантаження результатів:', err);
+      showError();
+    }
+  }
+
+  function showError() {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display = '';
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+  </script>
+</body>
+</html>
