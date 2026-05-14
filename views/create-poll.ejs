@@ -12,7 +12,7 @@
         <h1 style="margin:0 0 6px"><%= poll ? 'Редагування голосування' : 'Створення голосування' %></h1>
         <p class="section-subtitle" style="margin:0 0 24px">Заповніть основну інформацію</p>
 
-        <form action="<%= poll ? `/admin/polls/${poll.id}` : '/admin/polls' %>" method="POST" class="form">
+        <form class="form">
           <div class="form-group">
             <label for="title" class="label">Назва голосування</label>
             <input type="text" id="title" name="title" class="input"
@@ -62,5 +62,108 @@
     </div>
   </main>
   <%- include('ejs/footer') %>
+
+  <div id="toast"></div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    initAddOptionField();
+    initPetitionForm();
+  });
+
+  // ─── ФОРМА СТВОРЕННЯ / РЕДАГУВАННЯ ─────────────────────────────────────────
+
+  function initPetitionForm() {
+    const form = document.querySelector('.form');
+    if (!form) return;
+
+      const isEditing = <%= poll ? 'true' : 'false' %>;
+      const editingId = <%= poll ? poll.id : 'null' %>;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('title')?.value?.trim();
+      const text = document.getElementById('description')?.value?.trim();
+      const options = Array.from(document.querySelectorAll('input[name="options[]"]'))
+        .map(el => el.value.trim())
+        .filter(Boolean);
+
+      if (!name || !text) {
+        showToast('Заповніть всі поля');
+        return;
+      }
+
+      if (options.length < 2) {
+        showToast('Мінімум 2 варіанти відповіді');
+        return;
+      }
+
+      try {
+        const url    = isEditing ? `/api/petition/${editingId}` : '/api/petition';
+        const method = isEditing ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, text, options })
+        });
+
+        const result = await res.json();
+        showToast(result.message);
+
+        if (result.success) {
+          setTimeout(() => window.location.href = '/admin', 1000);
+        }
+
+      } catch (err) {
+        console.error('Помилка форми:', err);
+        showToast('Сервер недоступний');
+      }
+    });
+  }
+
+
+  function initAddOptionField() {
+    const addButton = document.getElementById('addCandidateBtn');
+    const candidateFields = document.getElementById('candidateFields');
+    if (!candidateFields || !addButton) return;
+
+    addButton.addEventListener('click', () => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'candidate-field';
+      wrapper.innerHTML = `
+        <input type="text" name="options[]" class="input" placeholder="Варіант відповіді" required />
+        <button type="button" class="remove-candidate-btn">✕</button>
+      `;
+      candidateFields.appendChild(wrapper);
+      bindRemoveButtons();
+    });
+
+    bindRemoveButtons();
+  }
+
+  function bindRemoveButtons() {
+    document.querySelectorAll('.remove-candidate-btn').forEach(btn => {
+      btn.onclick = function () {
+        if (document.querySelectorAll('.candidate-field').length > 2) {
+          this.parentElement.remove();
+        } else {
+          showToast('Мінімум 2 варіанти');
+        }
+      };
+    });
+  }
+
+
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+  </script>
 </body>
 </html>

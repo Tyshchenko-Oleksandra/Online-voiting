@@ -11,12 +11,20 @@
 
     <nav class="main-nav" id="mainNav">
       <a href="/" class="nav-link">Голосування</a>
+
+      <% if (locals.user && locals.user.admin === 1) { %>
+        <a href="/moderate" class="btn btn-primary btn-sm">Модерація</a>
+      <% } %> 
+
       <% if (user && user.role === 'admin') { %>
         <a href="/admin" class="nav-link">Адмін панель</a>
       <% } %>
+
       <% if (user) { %>
-        <span class="nav-link" style="color:var(--muted)"><%= user.username %></span>
-        <a href="/logout" class="nav-link nav-link--button" style="pointer-events: auto; cursor: pointer; z-index: 200; position: relative;">Вийти</a>
+        <span class="nav-link" style="color:var(--muted)">
+          <%= user.username %>
+        </span>
+        <a href="/logout" class="nav-link nav-link--button">Вийти</a>
       <% } else { %>
         <a href="/login" class="nav-link">Вхід</a>
         <a href="/register" class="nav-link nav-link--button">Реєстрація</a>
@@ -24,4 +32,5 @@
     </nav>
   </div>
 </header>
+
 <div id="toast" class="toast"></div>

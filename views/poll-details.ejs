@@ -12,57 +12,175 @@
       <section class="details-card">
         <div class="details-card__head">
           <div>
-            <span class="badge <%= poll.status === 'active' ? 'badge-active' : 'badge-closed' %>">
-              <%= poll.status === 'active' ? 'Активне' : 'Завершене' %>
-            </span>
-            <h1><%= poll.title %></h1>
-            <p class="details-description"><%= poll.description %></p>
+            <span class="badge badge-active">Активне</span>
+            <h1 id="pollTitle">...</h1>
+            <p class="details-description" id="pollDescription">...</p>
           </div>
         </div>
 
-        <% if (alreadyVoted) { %>
-          <div class="info-banner info-banner--warning" style="margin-top:18px">
-            Ви вже проголосували в цьому голосуванні.
-          </div>
+        <!-- Банер: вже проголосував -->
+        <div class="info-banner info-banner--warning" id="bannerVoted" style="display:none; margin-top:18px">
+          Ви вже проголосували в цьому голосуванні.
+        </div>
+
+        <!-- Банер: голосування закрите -->
+        <div class="info-banner info-banner--muted" id="bannerClosed" style="display:none; margin-top:18px">
+          Голосування завершене. Нові голоси не приймаються.
+        </div>
+
+        <!-- Банер: не авторизований -->
+        <div class="info-banner info-banner--warning" id="bannerAuth" style="display:none; margin-top:18px">
+          Щоб проголосувати, потрібно <a href="/login" style="color:inherit;font-weight:800">увійти в акаунт</a>.
+        </div>
+
+        <!-- Кнопка результатів -->
+        <div class="form-actions" id="resultsAction" style="display:none">
+          <a href="#" id="resultsLink" class="btn btn-secondary">Переглянути результати</a>
+        </div>
+
+        <!-- Форма голосування -->
+        <div id="voteSection" style="display:none">
+          <div class="candidate-list" id="candidateList"></div>
           <div class="form-actions">
-            <a href="/polls/<%= poll.id %>/results" class="btn btn-secondary">Переглянути результати</a>
+            <button type="button" class="btn btn-primary btn-lg" id="submitVoteBtn">Віддати голос</button>
           </div>
+        </div>
 
-        <% } else if (poll.status !== 'active') { %>
-          <div class="info-banner info-banner--muted" style="margin-top:18px">
-            Голосування завершене. Нові голоси не приймаються.
-          </div>
-          <div class="form-actions">
-            <a href="/polls/<%= poll.id %>/results" class="btn btn-secondary">Переглянути результати</a>
-          </div>
-
-        <% } else if (!user) { %>
-          <div class="info-banner info-banner--warning" style="margin-top:18px">
-            Щоб проголосувати, потрібно <a href="/login" style="color:inherit;font-weight:800">увійти в акаунт</a>.
-          </div>
-
-        <% } else { %>
-          <form action="/polls/<%= poll.id %>/vote" method="POST" class="vote-form" id="voteForm">
-            <div class="candidate-list">
-              <% (poll.options || []).forEach((option, i) => { %>
-                <label class="candidate-card">
-                  <input type="radio" name="optionIndex" value="<%= i %>" class="candidate-radio" />
-                  <div class="candidate-card__content">
-                    <div class="candidate-card__top">
-                      <h3><%= option %></h3>
-                    </div>
-                  </div>
-                </label>
-              <% }) %>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary btn-lg">Віддати голос</button>
-            </div>
-          </form>
-        <% } %>
       </section>
     </div>
   </main>
   <%- include('ejs/footer') %>
+
+  <div id="toast"></div>
+
+  <script>
+
+  async function initPollDetails() {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+const pollId = parts[1];
+    if (!pollId) return;
+
+    try {
+      const res = await fetch(`/api/petition/${pollId}`);
+      const result = await res.json();
+
+      if (!result.success) {
+        showToast(result.message || 'Помилка завантаження');
+        return;
+      }
+
+      const { petition, alreadyVoted, isAuth } = result;
+
+      // Заповнюємо заголовок і опис
+      document.getElementById('pollTitle').textContent       = petition.name;
+      document.getElementById('pollDescription').textContent = petition.text;
+      document.getElementById('resultsLink').href            = `/polls/${pollId}/results`;
+
+      if (alreadyVoted) {
+        // Вже проголосував
+        show('bannerVoted');
+        show('resultsAction');
+
+      } else if (petition.status !== 1) {
+        // Голосування закрите
+        show('bannerClosed');
+        show('resultsAction');
+
+      } else if (!isAuth) {
+        // Не авторизований
+        show('bannerAuth');
+
+      } else {
+        // Показуємо форму з варіантами
+        renderOptions(petition.answers);
+        show('voteSection');
+        initVoteSubmit(pollId);
+      }
+
+    } catch (err) {
+      console.error('Помилка завантаження голосування:', err);
+      showToast('Сервер недоступний');
+    }
+  }
+
+  function renderOptions(answers = []) {
+  const list = document.getElementById('candidateList');
+  list.innerHTML = '';
+
+  answers.forEach(answer => {
+    const label = document.createElement('label');
+    label.className = 'candidate-card';
+    label.htmlFor = `option-${answer.answerId}`;
+    label.innerHTML = `
+      <input 
+        type="radio" 
+        id="option-${answer.id}"
+        name="optionIndex" 
+        value="${answer.id}" 
+        class="candidate-radio" 
+      />
+      <div class="candidate-card__content">
+        <div class="candidate-card__top">
+          <h3>${answer.name}</h3>
+        </div>
+      </div>
+    `;
+
+    // Підсвічування обраного
+    label.addEventListener('click', () => {
+      document.querySelectorAll('.candidate-card').forEach(c => c.classList.remove('selected'));
+      label.classList.add('selected');
+    });
+
+    list.appendChild(label);
+  });
+}
+
+  function initVoteSubmit(pollId) {
+    const btn = document.getElementById('submitVoteBtn');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+      const selected = document.querySelector('input[name="optionIndex"]:checked');
+
+      if (!selected) {
+        showToast('Оберіть варіант відповіді');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/petition/${pollId}/vote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answerId: selected.value })
+        });
+
+        const result = await res.json();
+        showToast(result.message);
+
+        if (result.success) {
+          setTimeout(() => window.location.href = `/polls/${pollId}/results`, 1000);
+        }
+
+      } catch (err) {
+        console.error('Помилка голосування:', err);
+        showToast('Сервер недоступний');
+      }
+    });
+  }
+
+  function show(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+  </script>
 </body>
 </html>

@@ -22,71 +22,245 @@
             <h1>Мої голосування</h1>
             <p class="section-subtitle">Керуйте голосуваннями, змінюйте статус і переглядайте результати</p>
           </div>
+        </div>
 
-        <% if (polls && polls.length > 0) { %>
-          <div class="admin-cards">
-            <% polls.forEach(poll => { %>
-              <article class="admin-poll-card">
-                <div class="admin-poll-card__top">
-                  <div>
-                    <span class="badge <%= poll.status === 'active' ? 'badge-active' : 'badge-closed' %>">
-                      <%= poll.status === 'active' ? 'Активне' : 'Завершене' %>
-                    </span>
-                    <h3><%= poll.title %></h3>
-                  </div>
-                  <span class="poll-date"><%= poll.createdAt %></span>
-                </div>
+        <!-- Стан завантаження -->
+        <div id="loadingState">
+          <div class="skeleton skeleton-title" style="width:40%;height:28px;margin-bottom:12px"></div>
+          <div class="skeleton" style="width:100%;height:80px;border-radius:12px;margin-bottom:10px"></div>
+          <div class="skeleton" style="width:100%;height:80px;border-radius:12px"></div>
+        </div>
 
-                <div class="admin-poll-card__meta">
-                  <div class="url-box">
-                    <input
-                      type="text"
-                      value="<%= poll.url %>"
-                      readonly
-                      class="input url-input"
-                    />
-                    <button
-                      type="button"
-                      class="btn btn-secondary copy-btn"
-                      data-copy-text="<%= poll.url %>"
-                    >
-                      Копіювати URL
-                    </button>
-                  </div>
-                </div>
+        <!-- Картки петицій -->
+        <div id="adminCards" class="admin-cards" style="display:none"></div>
 
-                <div class="admin-poll-card__actions">
-                  <a href="/admin/polls/<%= poll.id %>/edit" class="btn btn-secondary btn-sm">Редагувати</a>
-                  <a href="/polls/<%= poll.id %>/results" class="btn btn-secondary btn-sm">Результати</a>
+        <!-- Порожній стан -->
+        <div id="emptyState" class="empty-box" style="display:none">
+          <h3>У вас ще немає голосувань</h3>
+          <p>Створіть перше голосування, щоб воно з'явилося тут.</p>
+          <a href="/admin/polls/new" class="btn btn-primary">Створити голосування</a>
+        </div>
 
-                  <% if (poll.status === 'active') { %>
-                    <form action="/admin/polls/<%= poll.id %>/stop" method="POST">
-                      <button type="submit" class="btn btn-warning btn-sm">Зупинити</button>
-                    </form>
-                  <% } else { %>
-                    <form action="/admin/polls/<%= poll.id %>/start" method="POST">
-                      <button type="submit" class="btn btn-primary btn-sm">Запустити</button>
-                    </form>
-                  <% } %>
-
-                  <form action="/admin/polls/<%= poll.id %>/delete" method="POST" class="delete-form">
-                    <button type="submit" class="btn btn-danger btn-sm">Видалити</button>
-                  </form>
-                </div>
-              </article>
-            <% }) %>
-          </div>
-        <% } else { %>
-          <div class="empty-box">
-            <h3>У вас ще немає голосувань</h3>
-            <p>Створіть перше голосування, щоб воно з’явилося тут.</p>
-            <a href="/admin/polls/new" class="btn btn-primary">Створити голосування</a>
-          </div>
-        <% } %>
+        <!-- Помилка -->
+        <div id="errorState" class="empty-box" style="display:none">
+          <h3>Не вдалося завантажити голосування</h3>
+          <button onclick="loadMyPetitions()" class="btn btn-primary" style="margin-top:12px">Спробувати ще</button>
+        </div>
       </section>
     </div>
   </main>
 
   <%- include('ejs/footer') %>
+  <div id="toast"></div>
+
+  <style>
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f5f6fa 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', loadMyPetitions);
+
+async function loadMyPetitions() {
+
+  const login = '<%= locals.user ? locals.user.login : "" %>';
+
+  if (!login) {
+    window.location.href = '/login';
+    return;
+  }
+
+  show('loadingState');
+  hide('adminCards');
+  hide('emptyState');
+  hide('errorState');
+
+  try {
+
+    const res = await fetch(
+      `/api/petitions/by-author/${encodeURIComponent(login)}`
+    );
+
+    const data = await res.json();
+
+    hide('loadingState');
+
+    if (!data.success) {
+      show('errorState');
+      return;
+    }
+
+    if (!data.petitions || !data.petitions.length) {
+      show('emptyState');
+      return;
+    }
+
+    renderCards(data.petitions);
+    show('adminCards');
+
+  } catch (err) {
+
+    console.error('Помилка завантаження:', err);
+
+    hide('loadingState');
+    show('errorState');
+  }
+}
+
+function renderCards(petitions) {
+
+  const container = document.getElementById('adminCards');
+  container.innerHTML = '';
+
+  petitions.forEach(p => {
+
+    // Статуси:
+    // 0 -> На розгляді
+    // 1 -> На голосуванні
+
+    const statusMap = {
+      0: {
+        text: 'На розгляді',
+        className: 'badge-closed'
+      },
+
+      1: {
+        text: 'На голосуванні',
+        className: 'badge-active'
+      }
+    };
+
+    const status = statusMap[p.status] || {
+      text: 'Невідомо',
+      className: 'badge-closed'
+    };
+
+    const card = document.createElement('article');
+
+    card.className = 'admin-poll-card';
+
+    card.innerHTML = `
+      <div class="admin-poll-card__top">
+
+        <div>
+
+          <span class="badge ${status.className}">
+            ${status.text}
+          </span>
+
+          <h3>${escHtml(p.name)}</h3>
+
+          <p style="
+            margin:4px 0 0;
+            color:var(--color-muted,#888);
+            font-size:13px
+          ">
+            ${escHtml(p.text)}
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="admin-poll-card__actions">
+
+        <a href="/polls/${p.id}/results"
+           class="btn btn-secondary btn-sm">
+          Результати
+        </a>
+
+        <button class="btn btn-danger btn-sm"
+                onclick="deletePetition(${p.id}, this)">
+          Видалити
+        </button>
+
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+async function deletePetition(id, btn) {
+
+  if (!confirm('Видалити голосування?')) return;
+
+  try {
+
+    const res = await fetch(`/api/petition/${id}`, {
+      method: 'DELETE'
+    });
+
+    const data = await res.json();
+
+    showToast(data.message);
+
+    if (data.success) {
+
+      btn.closest('.admin-poll-card').remove();
+
+      if (!document.querySelectorAll('.admin-poll-card').length) {
+
+        hide('adminCards');
+        show('emptyState');
+      }
+    }
+
+  } catch {
+
+    showToast('Сервер недоступний');
+  }
+}
+
+function escHtml(str) {
+
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function show(id) {
+
+  const el = document.getElementById(id);
+
+  if (el) {
+    el.style.display = '';
+  }
+}
+
+function hide(id) {
+
+  const el = document.getElementById(id);
+
+  if (el) {
+    el.style.display = 'none';
+  }
+}
+
+function showToast(message) {
+
+  const toast = document.getElementById('toast');
+
+  if (!toast) return;
+
+  toast.textContent = message;
+
+  toast.classList.add('show');
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 2200);
+}
+</script>
 </body>
 </html>
